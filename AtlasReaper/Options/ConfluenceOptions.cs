@@ -5,7 +5,7 @@ using System.IO;
 
 namespace AtlasReaper.Options
 {
-    internal class ConfluenceOptions
+    public class ConfluenceOptions
     {
 
         private string _status;
@@ -20,6 +20,8 @@ namespace AtlasReaper.Options
 
         internal string outfile;
         [Option('o', "output", Required = false, Default = null, HelpText = "Save output to file")]
+
+
         public string Outfile
         {
             get { return outfile; }
@@ -148,7 +150,7 @@ namespace AtlasReaper.Options
 
         //Listattachments command options
         [Verb("listattachments", HelpText = "List Attachments")]
-        internal class ListAttachmentsOptions : ConfluenceOptions
+        public class ListAttachmentsOptions : ConfluenceOptions
         {
             [Option('a', "all", Required = false, Default = false, HelpText = "Return all attachments for supplied space")]
             public bool All { get; set; }
@@ -170,11 +172,13 @@ namespace AtlasReaper.Options
 
             [Option('x', "exclude", Required = false, HelpText = "Comma-separated list of extensions to exclude (e.g. png,jpeg)")]
             public string Exclude { get; set; }
+            [Option('d', "output-dir", Required = false, HelpText = "Directory to save the downloaded attachments")]
+            public string OutputDir { get; set; }
         }
 
         // Listpages command options
         [Verb("listpages", HelpText = "List pages")]
-        internal class ListPagesOptions : ConfluenceOptions
+        public class ListPagesOptions : ConfluenceOptions
         {
 
             [Option("all", Required = false, Default = false, HelpText = "Return all pages (Returns every Page if no Space is specified)")]
@@ -183,7 +187,7 @@ namespace AtlasReaper.Options
             [Option('b', "body", Required = false, Default = false, HelpText = "Print body of pages")]
             public bool Body { get; set; }
 
-            [Option('l', "limit", Required = false, Default = "250", HelpText = "Number of results to return")]
+            [Option('l', "limit", Required = false, Default = "500", HelpText = "Number of results to return")]
             public string Limit { get; set; }
 
             [Option('p', "page", Required = false, HelpText = "Page to return")]

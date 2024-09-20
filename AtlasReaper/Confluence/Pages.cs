@@ -5,17 +5,19 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using AtlasReaper.Options;
+using System.Security.Cryptography;
+using System.Xml.Linq;
 
 namespace AtlasReaper.Confluence
 {
-    internal class Pages
+    public class Pages
     {
         internal void ListPages(ConfluenceOptions.ListPagesOptions options)
         {
             try
             {
                 List<Page> pages = new List<Page>();
-                if (options.Page != null)
+                if (options.Page != null && options.Space == null)
                 {
                     // List specific page
                     Page page = new Page();
@@ -48,10 +50,10 @@ namespace AtlasReaper.Confluence
                 }
                 else if (options.Space != null)
                 {
+                
                     // List pages for Space
-                    RootPagesObject pagesList = GetPages(options);
-                    pages = pagesList.Results.ToList();
-                    pages = pages.OrderByDescending(o => o.Version.CreatedAt).ToList();
+                    var spacePages = GetAllPages(options);
+                    pages.AddRange(spacePages);
                 }
                 else 
                 {
@@ -66,14 +68,14 @@ namespace AtlasReaper.Confluence
                 pages = pages.Where(page => page != null && page.Id != null).ToList();
                 if (pages.Count > 0)
                 {
-                    if (options.outfile != null)
+                  /*  if (options.outfile != null)
                     {
                         using (StreamWriter writer = new StreamWriter(options.outfile))
                         {
                             PrintPage(pages, options.Body, writer);
                         }
                     }
-                    else
+                    else*/
                     {
                         PrintPage(pages, options.Body, Console.Out);
                     }
@@ -93,15 +95,130 @@ namespace AtlasReaper.Confluence
         }
 
         // Get Page
-        internal Page GetPage(ConfluenceOptions.ListPagesOptions options)
+        internal static Page GetPage(ConfluenceOptions.ListPagesOptions options)
         {
             Page page = new Page();
-            string url = options.Url + "/wiki/api/v2/pages/" + options.Page + "?body-format=atlas_doc_format";
+            // string url = options.Url + "/wiki/api/v2/pages/" + options.Page + "?body-format=atlas_doc_format";
+            string url = options.Url + "/rest/api/content/" + options.Page + "?expand=space,body.view,version,container";
             try
             {
                 Utils.WebRequestHandler webRequestHandler = new Utils.WebRequestHandler();
                 page = webRequestHandler.GetJson<Page>(url, options.Cookie);
 
+                return page;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error occurred while getting page: " + ex.Message);
+                return page;
+            }
+
+        }
+        internal static RootPagesObject GetPageByDescendant(ConfluenceOptions.ListPagesOptions options,string path="",bool first=true)
+        {
+            RootPagesObject page = new RootPagesObject();
+            var nodePage= GetPage(options);
+            page.NodePage = nodePage;
+     
+            page.Results = new List<Page>();
+            page.Pages = new List<RootPagesObject>();
+
+            // string url = options.Url + "/wiki/api/v2/pages/" + options.Page + "?body-format=atlas_doc_format";
+            string url = options.Url + "/rest/api/content/" + options.Page+ "/child/page?limit=99999";
+            try
+            {
+                if (first)
+                {
+                    var name = Path.GetDirectoryName("D://conf/" + path);
+                    if (name == null)
+                    {
+                        name = "D://" + Utils.FileUtils.ReplaceInvalidChars(page.NodePage.Title);
+                    }
+                    else {
+                       
+                        name = "D://conf/" + Utils.FileUtils.ReplaceInvalidChars(page.NodePage.Title);
+                       
+                    }
+                    Directory.CreateDirectory(name);
+
+                    using (StreamWriter writer = new StreamWriter(name + "//" + Utils.FileUtils.ReplaceInvalidChars(page.NodePage.Title) + ".html"))
+                    {
+                        //save html
+                        PrintPage(new List<Page>() { nodePage }, true, writer);
+                        //save attachements
+                        var attachments = new Confluence.Attachments();
+                        ConfluenceOptions.ListAttachmentsOptions attachOptions = new ConfluenceOptions.ListAttachmentsOptions();
+                        attachOptions.Url=options.Url;
+                        attachOptions.Cookie=options.Cookie;
+                        attachOptions.Space=options.Space;
+                        attachOptions.OutputDir = name + "//";
+                        attachOptions.Page = options.Page;
+                        attachments.ListAttachments(attachOptions);
+
+                    }
+                    path = name + "";
+                }
+
+                Utils.WebRequestHandler webRequestHandler = new Utils.WebRequestHandler();
+                var nestpage = webRequestHandler.GetJson<RootPagesObject>(url, options.Cookie);
+                if (nestpage.Results.Any())
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path + "/"));
+                    //folder D://test/filaname.html
+                    //              download/attachments...
+                    using (StreamWriter writer = new StreamWriter(path + "/" + Utils.FileUtils.ReplaceInvalidChars(page.NodePage.Title) + ".html"))
+                    {
+                        //save html
+                        PrintPage(new List<Page>() { nodePage }, true, writer);
+                        //save attachements
+                        var attachments = new Confluence.Attachments();
+                        ConfluenceOptions.ListAttachmentsOptions attachOptions = new ConfluenceOptions.ListAttachmentsOptions();
+                        attachOptions.Url = options.Url;
+                        attachOptions.Cookie = options.Cookie;
+                        attachOptions.Space = options.Space;
+                        attachOptions.OutputDir = path + "//";
+                        attachOptions.Page = options.Page;
+                        attachments.ListAttachments(attachOptions);
+
+                    }
+                    foreach (var result in nestpage.Results)
+                    {
+                        if (result.Id == "62112433" || result.Id == "59841143" || result.Id == "12832841" || result.Id == "75008282" || result.Id == "43515542")//75008282产品需求评审
+                        {//5、发版记录12832841**电竞盲盒数据59841143老虎机数据62112433
+                            //43515542产品周例会纪要
+                            continue;
+                        }
+                        options.Page = result.Id;
+                        var newpath = path+"/"+ Utils.FileUtils.ReplaceInvalidChars(result.Title) ;
+                        var p = GetPageByDescendant(options, newpath,false);
+                  
+                        page.Pages.Add(p);
+                    }
+
+                }
+                else
+                {//end doc
+                    Directory.CreateDirectory(Path.GetDirectoryName(path+"/"));
+                    //folder D://test/filaname.html
+                    //              download/attachments...
+                    using (StreamWriter writer = new StreamWriter(path+"/" + Utils.FileUtils.ReplaceInvalidChars(page.NodePage.Title) + ".html"))
+                        {
+                            //save html
+                            PrintPage(new List<Page>() { nodePage }, true, writer);
+                        //save attachements
+                        var attachments = new Confluence.Attachments();
+                        ConfluenceOptions.ListAttachmentsOptions attachOptions = new ConfluenceOptions.ListAttachmentsOptions();
+                        attachOptions.Url = options.Url;
+                        attachOptions.Cookie = options.Cookie;
+                        attachOptions.Space = options.Space;
+                        attachOptions.OutputDir = path + "//";
+                        attachOptions.Page = options.Page;
+                        attachments.ListAttachments(attachOptions);
+
+                    }
+                    
+                }
+                
                 return page;
             }
             catch (Exception ex)
@@ -118,9 +235,9 @@ namespace AtlasReaper.Confluence
             RootPagesObject pagesList = new RootPagesObject();
 
             string url =
-                options.Url + "/wiki/api/v2/spaces/" + options.Space +
-                "/pages?limit=" + options.Limit +
-                "&status=" + options.Status;
+                options.Url + "/rest/api/space/" + options.Space + "/content/page" +
+                "?limit=" + options.Limit+
+                "&depth=all";
             try
             {
                 if (options.Body)
@@ -188,16 +305,18 @@ namespace AtlasReaper.Confluence
         }
 
         // Get all pages for a space
-        internal static List<Page> GetAllPages(ConfluenceOptions.ListPagesOptions options)
+        public static List<Page> GetAllPages(ConfluenceOptions.ListPagesOptions options)
         {
             List<Page> pages = new List<Page>();
 
-            // Set limit to 250 to reduce number of request
-            options.Limit = "250";
+            // Set limit to 999 to reduce number of request
+            options.Limit = "9999";
 
             try
             {
-                RootPagesObject pagesList = GetPages(options);
+               var child=   GetPageByDescendant(options);
+             
+             /*   RootPagesObject pagesList = GetPages(options);
                 pages = pagesList.Results;
 
                 while (pagesList != null && pagesList._Links.Next != null)
@@ -216,7 +335,7 @@ namespace AtlasReaper.Confluence
                     pagesList = GetPages(options, nextToken);
                     pages.AddRange(pagesList.Results);
                 }
-
+             */
                 pages = pages.OrderByDescending(o => o.Version.CreatedAt).ToList();
 
                 return pages;
@@ -244,9 +363,10 @@ namespace AtlasReaper.Confluence
                     writer.WriteLine("Page Id   : " + page.Id);
                     if (body)
                     {
-                        JToken json = JObject.Parse(page.Body.Atlas_Doc_Format.Value);
-                        List<string> textValues = GetPageText(json, "text");
-                        string bodyText = string.Join("\n                ", textValues);
+                        Console.WriteLine("view  " + page.Body.View.Value.ToString());
+                       // JToken json = JObject.Parse(page.Body.View.Value);
+                       // List<string> textValues = GetPageText(json, "text");
+                        string bodyText = string.Join("\n                ", page.Body.View.Value.ToString());
                         writer.WriteLine("Page Body : ");
                         writer.WriteLine("                " + bodyText);
                     }
@@ -263,13 +383,21 @@ namespace AtlasReaper.Confluence
 
     internal class RootPagesObject
     {
+        //V7.0
+        [JsonProperty("page")]
+        internal RootPagesObject Page { get; set; }
+
         [JsonProperty("results")]
         internal List<Page> Results { get; set; }
         [JsonProperty("_links")]
         internal _Links _Links { get; set; }
+
+        internal Page NodePage { get; set; }
+        internal List<RootPagesObject> Pages { get; set; }
+      
     }
 
-    internal class Page 
+    public class Page 
     {
         [JsonProperty("id")]
         internal string Id { get; set; }
@@ -289,6 +417,7 @@ namespace AtlasReaper.Confluence
         internal Version Version { get; set; }
         [JsonProperty("body")]
         internal Body Body { get; set; }
+
     }
 
     internal class Version
@@ -312,6 +441,9 @@ namespace AtlasReaper.Confluence
 
         [JsonProperty("atlas_doc_format")]
         internal BodyType Atlas_Doc_Format { get; set; }
+
+        [JsonProperty("view")]
+        internal BodyType View { get; set; }
     }
 
     internal class BodyType

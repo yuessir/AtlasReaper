@@ -22,7 +22,8 @@ namespace AtlasReaper.Utils
                     using (HttpClient client = new HttpClient(handler) { BaseAddress = baseAddress })
                     {
                         System.Net.ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-                        cookieContainer.Add(baseAddress, new Cookie("cloud.session.token", cookie));
+                        cookieContainer.Add(baseAddress, new Cookie("seraph.confluence", cookie));
+                        Console.WriteLine("Calling API : " + url);
                         HttpResponseMessage httpResponse = client.GetAsync(url).Result;
                         string result = httpResponse.Content.ReadAsStringAsync().Result;
                         T deserializedObject = JsonConvert.DeserializeObject<T>(result);
@@ -66,7 +67,7 @@ namespace AtlasReaper.Utils
                     System.Net.ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
                     if (cookie != null)
                     {
-                        cookieContainer.Add(baseAddress, new Cookie("cloud.session.token", cookie));
+                        cookieContainer.Add(baseAddress, new Cookie("seraph.confluence", cookie));
                     }
 
                     HttpContent content = new StringContent(serializedData, Encoding.UTF8, "application/json");
@@ -99,7 +100,7 @@ namespace AtlasReaper.Utils
                     System.Net.ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
                     if (cookie != null)
                     {
-                        cookieContainer.Add(baseAddress, new Cookie("cloud.session.token", cookie));
+                        cookieContainer.Add(baseAddress, new Cookie("seraph.confluence", cookie));
                     }
 
                     HttpContent content = new StringContent(serializedData, Encoding.UTF8, "application/json");
@@ -130,7 +131,7 @@ namespace AtlasReaper.Utils
                     System.Net.ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
                     if (cookie != null)
                     {
-                        cookieContainer.Add(baseAddress, new Cookie("cloud.session.token", cookie));
+                        cookieContainer.Add(baseAddress, new Cookie("seraph.confluence", cookie));
                     }
 
                     // LOL tell confluence to NOT require a CSRF token
@@ -184,9 +185,10 @@ namespace AtlasReaper.Utils
                     using (HttpClient client = new HttpClient(handler) { BaseAddress = baseAddress })
                     {
                         System.Net.ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-                        cookieContainer.Add(baseAddress, new Cookie("cloud.session.token", cookie));
+                        cookieContainer.Add(baseAddress, new Cookie("seraph.confluence", cookie));
                         HttpResponseMessage httpResponse = client.GetAsync(url).Result;
                         string redirectUrl = httpResponse.RequestMessage.RequestUri.ToString();
+                        Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath));
 
                         using (Stream contentStream = httpResponse.Content.ReadAsStreamAsync().Result)
                         using (FileStream fileStream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write))

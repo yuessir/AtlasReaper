@@ -19,13 +19,14 @@ namespace AtlasReaper.Confluence
                     Utils.WebRequestHandler webRequestHandler = new Utils.WebRequestHandler();
 
                     // Construct url to return attachment information
-                    string url = options.Url + "/wiki/rest/api/search?cql=type=attachment+AND+Id=" + attachment + "&expand=content.extensions";
+                    string url = options.Url + "/rest/api/search?cql=type=attachment+AND+Id=" + attachment + "&expand=content.extensions";
+           
 
                     // Get attachment information
                     RootAttachmentsObject attachmentObj = webRequestHandler.GetJson<RootAttachmentsObject>(url, options.Cookie);
 
                     // Construct download url and file name
-                    string downloadUrl = options.Url + "/wiki" + attachmentObj.Results[0].AttachmentContent._ContentLinks.Download;
+                    string downloadUrl = options.Url + "/" + attachmentObj.Results[0].AttachmentContent._ContentLinks.Self;
                     string fileName = attachmentObj.Results[0].AttachmentContent.Title;
                     
                     // Set path for file

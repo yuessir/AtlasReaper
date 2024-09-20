@@ -4,14 +4,15 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using AtlasReaper.Options;
+using AtlasReaper.Jira;
 
 namespace AtlasReaper.Confluence
 {
-    class Attachments
+    public class Attachments
     {
 
         // List attachmetns based on provided options
-        internal void ListAttachments(ConfluenceOptions.ListAttachmentsOptions options)
+        public void ListAttachments(ConfluenceOptions.ListAttachmentsOptions options)
         {
             try
             {
@@ -34,8 +35,8 @@ namespace AtlasReaper.Confluence
                     }
 
                     //Constructing URL for searching attachments in a given Space
-                    string url = options.Url + "/wiki/rest/api/search?cql=type=attachment+AND+Space+=+%20" + options.Space + "%20&expand=content.extensions";
-
+                    //string url = options.Url + "/rest/api/content/search?cql=type=attachment+AND+Space+=+%20" + options.Space + "%20&expand=content.extensions";
+                    string url = options.Url + "/rest/api/content/" + options.Page + "/child/attachment?start=0";
                     if (options.All)
                     {
                         url = url + "&limit=200";
@@ -43,7 +44,7 @@ namespace AtlasReaper.Confluence
                         // Get all attachments
                         RootAttachmentsObject rootAttachmentsObject = GetAttachments(options, url);
                         attachmentsList.AddRange(rootAttachmentsObject.Results);
-
+                      
                         while (attachmentsList.Count < rootAttachmentsObject.TotalSize)
                         {
                             string nextUrl = rootAttachmentsObject._Links.Base + rootAttachmentsObject._Links.Next;
@@ -57,7 +58,6 @@ namespace AtlasReaper.Confluence
                     {
                         // Get attachments with a specified limit
                         url = url + "&limit=" + options.Limit;
-
                         RootAttachmentsObject rootAttachmentsObject = GetAttachments(options, url);
                         attachmentsList = rootAttachmentsObject.Results;
 
@@ -70,8 +70,8 @@ namespace AtlasReaper.Confluence
                 else
                 {
                     // Construct URL for searching all attachments
-                    string url = options.Url + "/wiki/rest/api/search?cql=type=attachment&expand=content.extensions";
-
+                    // string url = options.Url + "/rest/api/content/search?cql=type=attachment&expand=content.extensions";
+                    string url = options.Url + "/rest/api/content/"+options.Page+"/child/attachment?start=0";
                     if (options.All)
                     {
                         // Get all attachments
@@ -100,6 +100,31 @@ namespace AtlasReaper.Confluence
                 else
                 {
                     PrintAttachments(attachmentsList, Console.Out);
+
+                    //download page and its attachments
+                    foreach (var attachment in attachmentsList)
+                    {
+                        Utils.WebRequestHandler webRequestHandler = new Utils.WebRequestHandler();
+
+                  
+                        // Construct download url and file name
+                        string downloadUrl = options.Url+ attachment.Links.Download;
+                        string fileName = attachment.AttachmentTitle;
+                        string fullPath = "";
+                        // Set path for file
+                        if (options.OutputDir != null)
+                        {
+                            fullPath =  options.OutputDir + "/download/attachments/" + options.Page + "/"+fileName;
+                        }
+                        else
+                        {
+                            fullPath = options.OutputDir + "/download/attachments/" + "/"+ attachment.Links.Download.Split(new string[] { fileName }, StringSplitOptions.None)[0] + fileName;
+                        }
+                        
+
+                        // Download the attachment
+                        webRequestHandler.DownloadFile(downloadUrl, options.Cookie, fullPath);
+                    }
                 }
             }
             catch (Exception ex)
@@ -169,6 +194,7 @@ namespace AtlasReaper.Confluence
                 while (attachmentsList.Count < rootAttachmentsObject.TotalSize)
                 {
                     string nextUrl = rootAttachmentsObject._Links.Base + rootAttachmentsObject._Links.Next;
+                    Console.WriteLine(nextUrl);
                     rootAttachmentsObject = GetAttachments(options, nextUrl);
                     attachmentsList.AddRange(rootAttachmentsObject.Results);
                 }
@@ -193,12 +219,12 @@ namespace AtlasReaper.Confluence
                 for (int i = 0; i < attachments.Count; i++)
                 {
                     Attachment attachment = attachments[i];
-                    writer.WriteLine("    Attachment Title:            " + attachment.AttachmentContent.Title);
-                    writer.WriteLine("    Attachment Id:               " + attachment.AttachmentContent.Id);
-                    writer.WriteLine("    Attachment Type:             " + attachment.AttachmentContent.Extensions.mediaType);
-                    writer.WriteLine("    Attachment Type Description: " + attachment.AttachmentContent.Extensions.MediaTypeDescription);
-                    writer.WriteLine("    Attachment Size:             " + FormatFileSize(attachment.AttachmentContent.Extensions.FileSize));
-                    writer.WriteLine("    Download Link:               " + attachment.AttachmentContent._ContentLinks.Download);
+                    writer.WriteLine("    Attachment Title:            " + attachment.AttachmentTitle);
+                    writer.WriteLine("    Attachment Id:               " + attachment.Links.Download);
+                   /* writer.WriteLine("    Attachment Type:             " + attachment.AttachmentResult.Extensions.mediaType);
+                    writer.WriteLine("    Attachment Type Description: " + attachment.AttachmentResult.Extensions.MediaTypeDescription);
+                    writer.WriteLine("    Attachment Size:             " + FormatFileSize(attachment.AttachmentResult.Extensions.FileSize));
+                    writer.WriteLine("    Download Link:               " + attachment.AttachmentResult._ContentLinks.Self);*/
                     writer.WriteLine();
                 }
             }
@@ -215,7 +241,6 @@ namespace AtlasReaper.Confluence
             try
             {
                 Utils.WebRequestHandler webRequestHandler = new Utils.WebRequestHandler();
-
                 attachments = webRequestHandler.GetJson<RootAttachmentsObject>(url, options.Cookie);
                 return attachments;
             }
@@ -262,7 +287,7 @@ namespace AtlasReaper.Confluence
         [JsonProperty("results")]
         internal List<Attachment> Results { get; set; }
 
-        [JsonProperty("totalSize")]
+        [JsonProperty("size")]
         internal int TotalSize { get; set; }
 
         [JsonProperty("_links")]
@@ -271,8 +296,15 @@ namespace AtlasReaper.Confluence
 
     internal class Attachment
     {
+        [JsonProperty("title")]
+        internal string AttachmentTitle { get; set; }
+        [JsonProperty("_links")]
+        internal AttachmentContent Links { get; set; }
+
+        //------------------
         [JsonProperty("content")]
         internal AttachmentContent AttachmentContent { get; set; }
+
 
         [JsonProperty("excerpt")]
         internal string Excerpt { get; set; }
@@ -297,7 +329,9 @@ namespace AtlasReaper.Confluence
 
         [JsonProperty("_links")]
         internal _ContentLinks _ContentLinks { get; set; }
-
+        //--------------
+        [JsonProperty("download")]
+        internal string Download { get; set; }
     }
 
     internal class Extensions
@@ -318,6 +352,9 @@ namespace AtlasReaper.Confluence
     {
         [JsonProperty("download")]
         internal string Download { get; set; }
+
+        [JsonProperty("self")]
+        internal string Self { get; set; }
     }
 }
 

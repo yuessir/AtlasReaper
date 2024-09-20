@@ -19,7 +19,7 @@ namespace AtlasReaper.Jira
                 List<Issue> issues = new List<Issue>();
                 Utils.WebRequestHandler webRequestHandler = new Utils.WebRequestHandler();
                 // Building the url
-                string restUrl = "/rest/api/3/search?jql=";
+                string restUrl = "/rest/api/content/search?cql=";
                 string url = options.Url + restUrl;
 
                 // GET all projects

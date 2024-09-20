@@ -22,7 +22,7 @@ namespace AtlasReaper.Confluence
             {
                 // Check cookie if supplied or attempt anonymous access
                 var webRequestHandler = new Utils.WebRequestHandler();
-                string authCheckUrl = url + "/wiki/rest/api/user/current";
+                string authCheckUrl = url + "/rest/api/user/current";
                 User user;
 
                 // Get user information

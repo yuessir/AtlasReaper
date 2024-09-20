@@ -1,3 +1,17 @@
+# AtlasReaper modified to ConfluenceServer v7.0 on-premise
+
+https://docs.atlassian.com/ConfluenceServer/rest/7.0.1/
+
+The following commadns  verified .
+
+``` 
+confluence listpages -u http://myconflu.com -c 1202ffdgdf88d0f85saddagdffjjhlhjl0dfbccef8b9 -s MySpaceXX -p 456446565"
+confluence listspaces -u http://myconflu.com -c 1202ffdgdf88d0f85saddagdffjjhlhjl0dfbccef8b9 -s MySpaceXX
+```    
+
+fork & modified by yourself~~ :)  
+				
+
 # AtlasReaper
 
 AtlasReaper is a command-line tool developed for offensive security purposes, primarily focused on reconnaissance of Confluence and Jira. It also provides various features that can be helpful for tasks such as credential farming and social engineering. The tool is written in C#. 

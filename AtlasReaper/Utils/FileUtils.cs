@@ -5,6 +5,10 @@ namespace AtlasReaper.Utils
 {
     class FileUtils
     {
+        internal static string ReplaceInvalidChars(string filename)
+        {
+            return string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
+        }
         internal static bool CanWriteToDirectory(string directoryPath)
         {
             try
